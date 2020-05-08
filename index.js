@@ -64,8 +64,8 @@ io.on('connection', (socket) => {
 	})
 	
 	// logs the chat message onto console
-	socket.on('chat message', (msg) => {
-		io.emit('chat message', msg);
+	socket.on('chatMessage', (msg) => {
+		io.emit('chatMessage', msg);
 		console.log('message: ' + msg);
 	  });
 
