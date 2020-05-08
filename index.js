@@ -18,7 +18,7 @@ app.get('/', (req, res) => {
 app.get("/rooms/:roomId", (res, req) => {
   // res.render("student", {room:req.params.roomId});
   // res.send(`<h1>Hello room id ${req.params.roomId}</h1>`);
-  consol.log(`Hello room id ${req.params.roomId}`)
+  console.log(`Hello room id ${req.params.roomId}`)
 })
 
 io.on('connection', (socket) => { 
