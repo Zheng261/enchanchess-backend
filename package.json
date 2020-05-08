@@ -16,7 +16,9 @@
     "uuid": "^7.0.3"
   },
   "devDependencies": {
-    "nodemon": "^2.0.3"
+    "bufferutil": "^4.0.1",
+    "nodemon": "^2.0.3",
+    "utf-8-validate": "^5.0.2"
   },
   "engines": {
     "node": "12.x"
