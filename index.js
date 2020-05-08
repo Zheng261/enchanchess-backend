@@ -15,14 +15,17 @@ app.get('/', (req, res) => {
 });
 
 // joining unique room url
-app.get("/rooms/:roomId", (res, req) => {
+// debugging purposes
+// use REST api to query data from db (if we even use db in the future, socket for multiplayer logic)
+app.get("/rooms/:roomId", (req, res) => {
   // res.render("student", {room:req.params.roomId});
   // res.send(`<h1>Hello room id ${req.params.roomId}</h1>`);
-  consol.log(`Hello room id ${req.params.roomId}`)
+  res.send(req.params)
+  console.log(req.params)
 })
 
 io.on('connection', (socket) => { 
-	console.log("client connected")
+	console.log("client connected", socket.id)
 	socket.on('test', test => {
 		console.log("test worked!")
 	})
@@ -40,7 +43,6 @@ io.on('connection', (socket) => {
 
 	// called when a user wants to join a room with specified room id
 	socket.on('joinRoom', roomId => {
-		
 		joinRoom(socket, roomId)
 	})
 
@@ -48,6 +50,11 @@ io.on('connection', (socket) => {
 	socket.on('getPlayersInRoom', roomId => {
 		const players = io.sockets.adapter.rooms[roomId];
 		socket.emit('dispatchPlayers', players)
+	})
+
+	// called when party leader wants to start game for everyone in the room
+	socket.on('startGame', roomId =>{
+		io.to(roomId).emit('gameStarted', true)
 	})
 });
 
