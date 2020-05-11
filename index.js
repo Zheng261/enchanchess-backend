@@ -3,6 +3,8 @@ var app = express();
 const http = require('http');
 const server = http.createServer(app);
 const io = require('socket.io')(server);
+// For reading JSON
+const fs = require('fs');
 
 const uuidv4 = require('uuid/v4');
 
@@ -10,9 +12,15 @@ const PORT = process.env.PORT || 8000	// server port
 
 const roomIds = new Set()
 
+
+let rawCardData = fs.readFileSync('Cards/baseSet.json');
+let cardJSON = JSON.parse(rawCardData);
+whiteCards = cardJSON["whiteCards"]
+
 app.get('/', (req, res) => {
   res.send('<h1>Hello world</h1>');
 });
+
 
 // joining unique room url
 // debugging purposes
@@ -44,6 +52,13 @@ io.on('connection', (socket) => {
 	// called when a user wants to join a room with specified room id
 	socket.on('joinRoom', roomId => {
 		joinRoom(socket, roomId)
+	})
+
+	// called when a user wants to draw a card
+	socket.on('drawCard', roomId => {
+		console.log("Drawn card for ", roomId)
+		const randomCard = whiteCards[Math.floor(Math.random() * whiteCards.length)];
+		socket.emit(('drawCardReply').concat(roomId), randomCard)
 	})
 
 	// return a list of players connected to the room
