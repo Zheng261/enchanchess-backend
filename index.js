@@ -18,7 +18,8 @@ let cardJSON = JSON.parse(rawCardData);
 whiteCards = cardJSON["whiteCards"]
 
 app.get('/', (req, res) => {
-  res.send('<h1>Hello world</h1>');
+//   res.send('<h1>Hello world</h1>');
+	res.sendFile(__dirname + '/chatbox_temp.html');	//temp for testing chat
 });
 
 
@@ -71,6 +72,18 @@ io.on('connection', (socket) => {
 	socket.on('startGame', roomId =>{
 		io.to(roomId).emit('gameStarted', true)
 	})
+
+	// testing disconnection (specifically for chatbox)
+	socket.on('disconnect', roomId =>{
+		console.log('client disconnected');
+	})
+	
+	// called when user sends a message
+	socket.on('sendChatMessage', (msg) => {
+		io.emit('RECEIVE_MESSAGE', msg);
+		console.log('message: ', msg);
+	  });
+
 });
 
 /**
