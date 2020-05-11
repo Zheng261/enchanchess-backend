@@ -63,10 +63,10 @@ io.on('connection', (socket) => {
 		console.log('client disconnected');
 	})
 	
-	// logs the chat message onto console
-	socket.on('chatMessage', (msg) => {
-		io.emit('chatMessage', msg);
-		console.log('message: ' + msg);
+	// called when user sends a message
+	socket.on('sendChatMessage', (msg) => {
+		io.emit('RECEIVE_MESSAGE', msg);
+		console.log('message: ', msg);
 	  });
 
 });
