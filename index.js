@@ -19,6 +19,7 @@ const roomIdToRoomCreators = {}
 
 let rawCardData = fs.readFileSync('Cards/baseSet.json');
 let cardJSON = JSON.parse(rawCardData);
+blackCards = cardJSON["blackCards"]
 whiteCards = cardJSON["whiteCards"]
 
 app.get('/', (req, res) => {
@@ -70,6 +71,13 @@ io.on('connection', (socket) => {
 		console.log("Drawn card for ", roomId)
 		const randomCard = whiteCards[Math.floor(Math.random() * whiteCards.length)];
 		socket.emit(('drawCardReply').concat(roomId), randomCard)
+	})
+
+	// called at the start of a new round to draw new black card
+	socket.on('drawBlackCard', roomId => {
+		console.log("Black card drawn for ", roomId)
+		const randomBlackCard = blackCards[Math.floor(Math.random() * blackCards.length)];
+		socket.emit(('drawBlackCardReply').concat(roomId), randomBlackCard)
 	})
 
 	// return a list of players connected to the room
