@@ -10,8 +10,12 @@ const uuidv4 = require('uuid/v4');
 
 const PORT = process.env.PORT || 8000	// server port
 
+// Holds rooms
 const roomIds = new Set()
-
+// Maps room IDs to players
+const roomIdToPlayers = {}
+// Maps room IDs to room creators (to track who can start game)
+const roomIdToRoomCreators = {}
 
 let rawCardData = fs.readFileSync('Cards/baseSet.json');
 let cardJSON = JSON.parse(rawCardData);
@@ -40,14 +44,20 @@ io.on('connection', (socket) => {
 	})
 	
 	// called when a user wants to create a new room
-	socket.on('createRoom', () => {
+	socket.on('createRoom', gameCreatorUser => {
 		const id = uuidv4()
 		const [ roomId ] = id.split('-').slice(-1)
 
 		roomIds.add(roomId)
+		roomIdToPlayers[roomId] = new Set()
+		roomIdToRoomCreators[roomId] = new Set()
+		roomIdToRoomCreators[roomId].add(gameCreatorUser)
+
 		// sends room id back to client
 		socket.emit('dispatchRoomId', roomId)
-		joinRoom(socket, roomId)
+		// Room creator now joins room at the same time as everyone else
+
+		//joinRoom(socket, roomId)
 	})
 
 	// called when a user wants to join a room with specified room id
@@ -70,6 +80,7 @@ io.on('connection', (socket) => {
 
 	// called when party leader wants to start game for everyone in the room
 	socket.on('startGame', roomId =>{
+		console.log('signalling start game to ', roomId)
 		io.to(roomId).emit('gameStarted', true)
 	})
 
@@ -80,8 +91,9 @@ io.on('connection', (socket) => {
 	
 	// called when user sends a message
 	socket.on('sendChatMessage', (msg) => {
-		io.emit('RECEIVE_MESSAGE', msg);
-		console.log('message: ', msg);
+		io.emit(('RECEIVE_MESSAGE').concat(msg.roomId), msg);
+		console.log('message: ', msg.message);
+		console.log('roomId', msg.roomId)
 	  });
 
 });
@@ -96,7 +108,13 @@ const joinRoom = (socket, roomId) => {
     console.log(`player ${socket.id} joined room ${roomId}`);
   });
   var room = io.sockets.adapter.rooms[roomId];
-	console.log("# ppl in room: ", room.length)
+  // Add player to ongoing list of players in this room
+  
+  if (roomId in roomIdToPlayers) {
+  	roomIdToPlayers[roomId].add(socket.id)
+  }
+
+  console.log("# ppl in room: ", room.length)
 }
 
 // todo: testing purposes delete after backend is setup
