@@ -153,6 +153,13 @@ io.on('connection', (socket) => {
 		user = msg.user
 		card = msg.card
 		console.log("Played card ", card, " for ", roomId, " with user ", user)
+		var data={  
+			message : {author: "", 
+						message: user + " played a card.",
+						roomID: msg.roomId},  
+			isUserUpdate : false  
+		};  
+		io.emit(('RECEIVE_MESSAGE').concat(roomId), data);
 
 		// Adds card to center, keeps track of which card is played by which user
 		roomIdData[roomId]["CardsInCenterToPlayers"][card] = user
@@ -250,6 +257,13 @@ io.on('connection', (socket) => {
 
 				// Tell everyone in our room to update czar 
 				io.to(roomId).emit('getCardCzarReply', roomIdData[roomId]["Players"][czarIndex])
+				var data={  
+					message : {author: "", 
+								message: roomIdData[roomId]["Players"][czarIndex] + " is now czar.",
+								roomID: msg.roomId},  
+					isUserUpdate : false  
+				};  
+				io.emit(('RECEIVE_MESSAGE').concat(roomId), data);
 			}
 		}
 		
