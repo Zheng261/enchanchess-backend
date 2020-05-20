@@ -153,6 +153,13 @@ io.on('connection', (socket) => {
 		user = msg.user
 		card = msg.card
 		console.log("Played card ", card, " for ", roomId, " with user ", user)
+		var data={  
+			message : {author: "", 
+						message: user + " played a card.",
+						roomID: msg.roomId},  
+			isUserUpdate : false  
+		};  
+		io.emit(('RECEIVE_MESSAGE').concat(roomId), data);
 
 		// Adds card to center, keeps track of which card is played by which user
 		roomIdData[roomId]["CardsInCenterToPlayers"][card] = user
@@ -214,6 +221,13 @@ io.on('connection', (socket) => {
 			
 			// Reply to room 
 			io.to(roomId).emit('pickCardReply', pickCardData)
+			var data={  
+				message : {author: "", 
+							message: user + ", the czar, picked the card \"" + card +"\" played by " + winner, 
+							roomID: msg.roomId},  
+				isUserUpdate : false  
+			};  
+			io.emit(('RECEIVE_MESSAGE').concat(roomId), data);
 
 			// Is the game over? If so, tell the room
 			if (roomIdData[roomId]["PlayersToPoints"][winner] >= 
@@ -243,6 +257,13 @@ io.on('connection', (socket) => {
 
 				// Tell everyone in our room to update czar 
 				io.to(roomId).emit('getCardCzarReply', roomIdData[roomId]["Players"][czarIndex])
+				var data={  
+					message : {author: "", 
+								message: roomIdData[roomId]["Players"][czarIndex] + " is now czar.",
+								roomID: msg.roomId},  
+					isUserUpdate : false  
+				};  
+				io.emit(('RECEIVE_MESSAGE').concat(roomId), data);
 			}
 		}
 		
@@ -275,9 +296,12 @@ io.on('connection', (socket) => {
 	
 	// called when user sends a message
 	socket.on('sendChatMessage', (msg) => {
-		io.emit(('RECEIVE_MESSAGE').concat(msg.roomId), msg);
-		console.log('message: ', msg.message);
-		console.log('roomId', msg.roomId)
+		var data={  
+			message : msg,  
+			isUserUpdate : true  
+		};  
+		console.log("BACKEND", data);
+		io.emit(('RECEIVE_MESSAGE').concat(msg.roomId), data);
 	  });
 
 });
