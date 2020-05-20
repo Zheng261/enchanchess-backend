@@ -214,6 +214,13 @@ io.on('connection', (socket) => {
 			
 			// Reply to room 
 			io.to(roomId).emit('pickCardReply', pickCardData)
+			var data={  
+				message : {author: "Game", 
+							message: user + " picked card " + card, 
+							roomID: msg.roomId},  
+				isUserUpdate : false  
+			};  
+			io.emit(('RECEIVE_MESSAGE').concat(roomId), data);
 
 			// Is the game over? If so, tell the room
 			if (roomIdData[roomId]["PlayersToPoints"][winner] >= 
@@ -275,9 +282,12 @@ io.on('connection', (socket) => {
 	
 	// called when user sends a message
 	socket.on('sendChatMessage', (msg) => {
-		io.emit(('RECEIVE_MESSAGE').concat(msg.roomId), msg);
-		console.log('message: ', msg.message);
-		console.log('roomId', msg.roomId)
+		var data={  
+			message : msg,  
+			isUserUpdate : true  
+		};  
+		console.log("BACKEND", data);
+		io.emit(('RECEIVE_MESSAGE').concat(msg.roomId), data);
 	  });
 
 });
