@@ -215,8 +215,8 @@ io.on('connection', (socket) => {
 			// Reply to room 
 			io.to(roomId).emit('pickCardReply', pickCardData)
 			var data={  
-				message : {author: "Game", 
-							message: user + " picked card " + card, 
+				message : {author: "", 
+							message: user + ", the czar, picked the card \"" + card +"\" played by " + winner, 
 							roomID: msg.roomId},  
 				isUserUpdate : false  
 			};  
