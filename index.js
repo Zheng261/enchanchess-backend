@@ -62,6 +62,7 @@ io.on('connection', (socket) => {
 
 		// Creator will store one username -- we will make sure users can't enter duplicate ones
 		roomIdData[roomId]["Creator"] = new Set()
+		roomIdData[roomId]["PlayersToHands"] = {}
 		roomIdData[roomId]["PlayersToPoints"] = {}
 
 		// All cards in center of board right now (player to card dict)
@@ -70,12 +71,21 @@ io.on('connection', (socket) => {
 		// Keep track of who is czar
 		roomIdData[roomId]["CzarIndex"] = 0
 
+		// Assigns individual deck to room, shuffles decks to begin 
+		roomIdData[roomId]["WhiteCardDeck"] = whiteCards
+		shuffle(roomIdData[roomId]["WhiteCardDeck"])
+		roomIdData[roomId]["BlackCardDeck"] = blackCards
+		shuffle(roomIdData[roomId]["BlackCardDeck"])
+
 		// Current black card
 		roomIdData[roomId]["CurrBlackCard"] = ""
 
 		// Keep track of how many points to win
 		// NOTE: WE MAY CHOOSE TO LET PEOPLE CHANGE THIS
 		roomIdData[roomId]["PointsToWin"] = 10
+		// Keep track of how many cards to initially draw
+		// NOTE: WE MAY CHOOSE TO LET PEOPLE CHANGE THIS
+		roomIdData[roomId]["CardsToDraw"] = 7
 
 		// All cards in circulation 
 		roomIdData[roomId]["CardsInHandOrPlay"] = new Set()
@@ -95,27 +105,36 @@ io.on('connection', (socket) => {
 	// called when a user wants to join a room with specified room id
 	socket.on('joinRoom', msg => {
 		joinRoom(socket, msg.roomId, msg.user)
-		// THIS IS COMPLETELY REDUNDANT, JUST ADDING HERE IN CASE IT FIXES A DUMB BUG
 	})
 
 	// called when party leader wants to start game for everyone in the room
 	socket.on('startGame', roomId =>{
-		console.log('Signalling start game to ', roomId)
-		console.log('Players in room :', roomIdData[roomId]["Players"])
-		roomIdData[roomId]["Started"] = true
-		shuffle(roomIdData[roomId]["Players"])
+		// Adding condition in case two players try to start at the same time
+		if (!roomIdData[roomId]["Started"]) {
+			console.log('Signalling start game to ', roomId)
+			console.log('Players in room :', roomIdData[roomId]["Players"])
+			roomIdData[roomId]["Started"] = true
+			shuffle(roomIdData[roomId]["Players"])
 
-		// Draw a first black card and fix it for the room
+			// Draw a first black card and fix it for the room
+			const randomBlackCard = blackCards[Math.floor(Math.random() * blackCards.length)];
+			roomIdData[roomId]["CurrBlackCard"] = randomBlackCard
 
-		// At some point we should make sure that you can't draw the same black card within
-		// like... 50 rounds?
-		const randomBlackCard = blackCards[Math.floor(Math.random() * blackCards.length)];
-		roomIdData[roomId]["CurrBlackCard"] = randomBlackCard
-		
-
-		// Tell everyone in our room there's a black card
-		io.to(roomId).emit('drawBlackCardReply', roomIdData[roomId]["CurrBlackCard"])
-
+			// Draw white cards and initialize hand state
+			for (const player of roomIdData[roomId]["Players"]) {
+	
+				roomIdData[roomId]["PlayersToHands"][player] = []
+				// Draw some number of cards for each player to start with 
+				for (cardDrawNum = 0; cardDrawNum < roomIdData[roomId]["CardsToDraw"]; cardDrawNum++) {
+					drawCard(roomId, player)
+				}
+				console.log("Sending ", ('drawCardReply').concat(player))
+				io.to(roomId).emit(('drawCardReply').concat(player), roomIdData[roomId]["PlayersToHands"][player])
+			}
+			// Tell everyone in our room there's a black card
+			io.to(roomId).emit('drawBlackCardReply', roomIdData[roomId]["CurrBlackCard"])
+			
+		}
 		io.to(roomId).emit('gameStarted', true)
 	})
 
@@ -131,20 +150,33 @@ io.on('connection', (socket) => {
 		}
 	})
 
-	// Called when a user wants to draw a card
-	socket.on('drawCard', roomId => {
-		console.log("Drawn card for ", roomId)
-
-		let randomCard = whiteCards[Math.floor(Math.random() * whiteCards.length)];
-
-		// Draw again until we find one that's not in someone's hand lol
-		while(randomCard in roomIdData[roomId]["CardsInHandOrPlay"]) {
-			randomCard = whiteCards[Math.floor(Math.random() * whiteCards.length)];
-		}
-
-		// Appends card to cards drawn so far
+	// General card drawing function
+	function drawCard(roomId, user) {
+		console.log("Drawn card in ", roomId, " for user ", user)
+		let randomCard = roomIdData[roomId]["WhiteCardDeck"].shift()
+		// Appends card to cards drawn so far, as well as to end of list of players' hand 
+		roomIdData[roomId]["PlayersToHands"][user].push(randomCard)
 		roomIdData[roomId]["CardsInHandOrPlay"].add(randomCard)
-		socket.emit(('drawCardReply').concat(roomId), randomCard)
+	}
+
+	// Called when a user wants to find out what cards they've drawn
+	socket.on('getDrawnCards', data => {
+		roomId = data.roomId
+		user = data.user
+		// Replies with player's new hand 
+		io.to(roomId).emit(('drawCardReply').concat(user), roomIdData[roomId]["PlayersToHands"][user])
+	})
+
+
+	// Called when a user wants to draw a card
+	// (Not used right now)
+	socket.on('drawCard', data => {
+		roomId = data.roomId
+		user = data.user
+		// Draw white card
+		drawCard(roomId, user)
+		// Replies with player's new hand 
+		io.to(roomId).emit(('drawCardReply').concat(user), roomIdData[roomId]["PlayersToHands"][user])
 	})
 
 	// Called when any user plays a card 
@@ -163,6 +195,10 @@ io.on('connection', (socket) => {
 
 		// Adds card to center, keeps track of which card is played by which user
 		roomIdData[roomId]["CardsInCenterToPlayers"][card] = user
+
+		// Removes card from player's hand by value
+		roomIdData[roomId]["PlayersToHands"][user] = 
+			roomIdData[roomId]["PlayersToHands"][user].filter(function(value, index, arr){ return value != card;})
 
 		// Array of cards players have played so far this round
 		cardsSoFar = Object.keys(roomIdData[roomId]["CardsInCenterToPlayers"])
@@ -183,6 +219,12 @@ io.on('connection', (socket) => {
 		czarIndex = roomIdData[roomId]["CzarIndex"]
 		// Which player is the czar?
 		io.to(roomId).emit('getCardCzarReply', roomIdData[roomId]["Players"][czarIndex])
+		// Also gets card data for redundancy
+		io.to(roomId).emit('drawBlackCardReply', roomIdData[roomId]["CurrBlackCard"])
+		// Gets white cards too while we're at it, why not
+		for (const player of roomIdData[roomId]["Players"]) {
+			io.to(roomId).emit(('drawCardReply').concat(player), roomIdData[roomId]["PlayersToHands"][player])
+		}
 	});
 
 	// Called when the czar picks a card, also contains logic for ending a round
@@ -211,9 +253,11 @@ io.on('connection', (socket) => {
 			// Adds info to data: card, winner, new points
 			pickCardData = {card: card, winner: winner, newPoints: roomIdData[roomId]["PlayersToPoints"]}
 
-			// Remove cards in center of board from play
-			for (card in roomIdData[roomId]["CardsInCenterToPlayers"]) {
+			// Remove cards in center of board from play (cards in center to players is a dict)
+			for (const card in roomIdData[roomId]["CardsInCenterToPlayers"]) {
 				roomIdData[roomId]["CardsInHandOrPlay"].delete(card)
+				// Adds it back to bottom of deck
+				roomIdData[roomId]["WhiteCardDeck"].push(card)
 			}
 
 			// Resets cards in center of board 
@@ -238,6 +282,23 @@ io.on('connection', (socket) => {
 				io.to(roomId).emit('gameOver', pickCardData)
 
 			} else {
+				// Draw a new white card for each player
+				for (const player of roomIdData[roomId]["Players"]) {
+					// Obviously besides the czar
+					if (player != roomIdData[roomId]["Players"][czarIndex]) {
+						drawCard(roomId, player)
+					}
+					io.to(roomId).emit(('drawCardReply').concat(player), roomIdData[roomId]["PlayersToHands"][player])
+				}
+
+				// Pushes current black card to end of deck
+				roomIdData[roomId]["BlackCardDeck"].push(roomIdData[roomId]["CurrBlackCard"])
+				// Draw next black card
+				roomIdData[roomId]["CurrBlackCard"] = roomIdData[roomId]["BlackCardDeck"].shift()
+
+				// Tell everyone in our room there's a black card (also done in czar lol)
+				io.to(roomId).emit('drawBlackCardReply', roomIdData[roomId]["CurrBlackCard"])
+
 				// Advance who is the Czar
 				czarIndex += 1
 				// Mod by length of players 
@@ -246,14 +307,6 @@ io.on('connection', (socket) => {
 				// everything lol
 				czarIndex = czarIndex % roomIdData[roomId]["Players"].length
 				roomIdData[roomId]["CzarIndex"] = czarIndex
-
-				// At some point we should make sure that you can't draw the same black card within
-				// like... 50 rounds?
-				const randomBlackCard = blackCards[Math.floor(Math.random() * blackCards.length)];
-				roomIdData[roomId]["CurrBlackCard"] = randomBlackCard
-
-				// Tell everyone in our room there's a new black card
-				io.to(roomId).emit('drawBlackCardReply', roomIdData[roomId]["CurrBlackCard"])
 
 				// Tell everyone in our room to update czar 
 				io.to(roomId).emit('getCardCzarReply', roomIdData[roomId]["Players"][czarIndex])
@@ -267,13 +320,6 @@ io.on('connection', (socket) => {
 			}
 		}
 		
-	})
-
-	// called at the start of a new round to draw new black card
-	socket.on('drawBlackCard', roomId => {
-		console.log("Black card for the room revealed for ", roomId)
-		// reveals fixed black card from room
-		io.to(roomId).emit('drawBlackCardReply', roomIdData[roomId]["CurrBlackCard"])
 	})
 
 	// return a list of players connected to the room
