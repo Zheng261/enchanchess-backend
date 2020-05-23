@@ -371,6 +371,15 @@ const joinRoom = (socket, roomId, user) => {
 		roomIdData[roomId]["Players"].push(user)
 		// Initializes points to 0
 		roomIdData[roomId]["PlayersToPoints"][user] = 0
+		// If game started, we gotta draw this friend some cards!
+		if (roomIdData[roomId]["Started"]) {
+			roomIdData[roomId]["PlayersToHands"][user] = []
+			// Draw some number of cards for each player to start with 
+			for (cardDrawNum = 0; cardDrawNum < roomIdData[roomId]["CardsToDraw"]; cardDrawNum++) {
+				drawCard(roomId, user)
+			}
+			io.to(roomId).emit(('drawCardReply').concat(user), roomIdData[roomId]["PlayersToHands"][user])
+		}
 	  }
 
 	// Update number of players and player-points whenever someone joins!
