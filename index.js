@@ -2,6 +2,8 @@ var express = require('express');
 var cors = require('cors')
 
 var app = express();
+app.use(cors());
+app.options('*', cors());
 const http = require('http');
 const server = http.createServer(app);
 
@@ -116,6 +118,7 @@ io.on('connection', (socket) => {
 	// called when party leader wants to start game for everyone in the room
 	socket.on('startGame', roomId =>{
 		// Adding condition in case two players try to start at the same time
+		console.log(roomIdData[roomId]["Started"])
 		if (!roomIdData[roomId]["Started"]) {
 			console.log('Signalling start game to ', roomId)
 			console.log('Players in room :', roomIdData[roomId]["Players"])
@@ -155,15 +158,6 @@ io.on('connection', (socket) => {
 			console.log("Want to send, but ", roomId, " roomId does not exist!")
 		}
 	})
-
-	// General card drawing function
-	function drawCard(roomId, user) {
-		console.log("Drawn card in ", roomId, " for user ", user)
-		let randomCard = roomIdData[roomId]["WhiteCardDeck"].shift()
-		// Appends card to cards drawn so far, as well as to end of list of players' hand 
-		roomIdData[roomId]["PlayersToHands"][user].push(randomCard)
-		roomIdData[roomId]["CardsInHandOrPlay"].add(randomCard)
-	}
 
 	// Called when a user wants to find out what cards they've drawn
 	socket.on('getDrawnCards', data => {
@@ -340,7 +334,6 @@ io.on('connection', (socket) => {
 		io.to(roomId).emit('dispatchPlayerPoints', playerPoints)
 	})
 
-
 	// testing disconnection (specifically for chatbox)
 	socket.on('disconnect', roomId =>{
 		console.log('client disconnected');
@@ -354,15 +347,38 @@ io.on('connection', (socket) => {
     const index = roomIdData[roomId]["Players"].indexOf(user);
 		roomIdData[roomId]["Players"].splice(index, 1);
 
+		console.log(roomIdData[roomId]["PlayersToPoints"])
+
 		// if the person who left is the czar, start a new round?
 		
-
 		// tell room that player left
 	  socket.leave(roomId, () => {
 			io.to(roomId).emit('dispatchPlayers', roomIdData[roomId]["Players"])
    		io.to(roomId).emit(`user ${socket.id} has left the room`);
   	});
   });
+
+	// have player rejoin room after quitting one
+	socket.on('rejoinRoom', ({ user, roomId }) => {
+		console.log("trying to rejoin room as ", user)
+		console.log(roomIdData[roomId]["PlayersToPoints"])
+
+		// add player to players list (used for when player rejoins after quitting the game)
+		if (!roomIdData[roomId]["Players"].includes(user)) {
+			roomIdData[roomId]["Players"].push(user)
+			io.to(roomId).emit('dispatchPlayers', roomIdData[roomId]["Players"])
+
+			// redraw white cards 
+			roomIdData[roomId]["PlayersToHands"][user] = []
+
+			// Draw some number of cards for each player to start with 
+			for (cardDrawNum = 0; cardDrawNum < roomIdData[roomId]["CardsToDraw"]; cardDrawNum++) {
+				drawCard(roomId, user)
+			}
+			console.log("Sending ", ('drawCardReply').concat(user))
+			io.to(roomId).emit(('drawCardReply').concat(user), roomIdData[roomId]["PlayersToHands"][user])
+		}
+	})
 
 	// called when user sends a message
 	socket.on('sendChatMessage', (msg) => {
@@ -375,6 +391,15 @@ io.on('connection', (socket) => {
 	  });
 
 });
+
+// General card drawing function
+const drawCard = (roomId, user) => {
+	console.log("Drawn card in ", roomId, " for user ", user)
+	let randomCard = roomIdData[roomId]["WhiteCardDeck"].shift()
+	// Appends card to cards drawn so far, as well as to end of list of players' hand 
+	roomIdData[roomId]["PlayersToHands"][user].push(randomCard)
+	roomIdData[roomId]["CardsInHandOrPlay"].add(randomCard)
+}
 
 /**
  * connects a socket to a specified room
@@ -391,19 +416,24 @@ const joinRoom = (socket, roomId, user) => {
   // Add player to ongoing list of players in this room -- if player is already in list
   // then this does nothing since it's a set
   if (roomId in roomIdData) {
-	  if (!roomIdData[roomId]["Players"].includes(user)) {
-		roomIdData[roomId]["Players"].push(user)
-		// Initializes points to 0
-		roomIdData[roomId]["PlayersToPoints"][user] = 0
-		// If game started, we gotta draw this friend some cards!
-		if (roomIdData[roomId]["Started"]) {
-			roomIdData[roomId]["PlayersToHands"][user] = []
-			// Draw some number of cards for each player to start with 
-			for (cardDrawNum = 0; cardDrawNum < roomIdData[roomId]["CardsToDraw"]; cardDrawNum++) {
-				drawCard(roomId, user)
+	  if (!roomIdData[roomId]["Players"].includes(user) && user !== null) {
+			roomIdData[roomId]["Players"].push(user)
+
+			// Initializes points to 0 
+			const storedPlayers = Object.keys(roomIdData[roomId]["PlayersToPoints"])
+			if (!storedPlayers.includes(user)) {
+				roomIdData[roomId]["PlayersToPoints"][user] = 0
 			}
-			io.to(roomId).emit(('drawCardReply').concat(user), roomIdData[roomId]["PlayersToHands"][user])
-		}
+
+			// If game started, we gotta draw this friend some cards!
+			if (roomIdData[roomId]["Started"]) {
+				roomIdData[roomId]["PlayersToHands"][user] = []
+				// Draw some number of cards for each player to start with 
+				for (cardDrawNum = 0; cardDrawNum < roomIdData[roomId]["CardsToDraw"]; cardDrawNum++) {
+					drawCard(roomId, user)
+				}
+				io.to(roomId).emit(('drawCardReply').concat(user), roomIdData[roomId]["PlayersToHands"][user])
+			}
 	  }
 
 	// Update number of players and player-points whenever someone joins!
