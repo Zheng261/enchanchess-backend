@@ -340,6 +340,24 @@ io.on('connection', (socket) => {
 		console.log('client disconnected');
 	})
 	
+	// when user wants to leave a room
+	socket.on('leaveRoom', ({ user, roomId }) => {
+    console.log(`user ${socket.id} username ${user} leaving room`)
+
+    // remove player from player array
+    const index = roomIdData[roomId]["Players"].indexOf(user);
+		roomIdData[roomId]["Players"].splice(index, 1);
+
+		// if the person who left is the czar, start a new round?
+		
+
+		// tell room that player left
+	  socket.leave(roomId, () => {
+			io.to(roomId).emit('dispatchPlayers', roomIdData[roomId]["Players"])
+   		io.to(roomId).emit(`user ${socket.id} has left the room`);
+  	});
+  });
+
 	// called when user sends a message
 	socket.on('sendChatMessage', (msg) => {
 		var data={  
