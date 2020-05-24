@@ -28,22 +28,22 @@ let cardJSON = JSON.parse(rawCardData);
 blackCards = cardJSON["blackCards"]
 whiteCards = cardJSON["whiteCards"]
 
-// these rest api req are what is causing the cors!!!!!!
-app.get('/', cors(), (req, res) => {
-//   res.send('<h1>Hello world</h1>');
-	res.sendFile(__dirname + '/chatbox_temp.html');	//temp for testing chat
-});
+// // these rest api req are what is causing the cors!!!!!!
+// app.get('/', cors(), (req, res) => {
+// //   res.send('<h1>Hello world</h1>');
+// 	res.sendFile(__dirname + '/chatbox_temp.html');	//temp for testing chat
+// });
 
 
-// joining unique room url
-// debugging purposes
-// use REST api to query data from db (if we even use db in the future, socket for multiplayer logic)?????
-app.get("/rooms/:roomId", cors(), (req, res) => {
-  // res.render("student", {room:req.params.roomId});
-  // res.send(`<h1>Hello room id ${req.params.roomId}</h1>`);
-  res.send(req.params)
-  console.log(req.params)
-})
+// // joining unique room url
+// // debugging purposes
+// // use REST api to query data from db (if we even use db in the future, socket for multiplayer logic)?????
+// app.get("/rooms/:roomId", cors(), (req, res) => {
+//   // res.render("student", {room:req.params.roomId});
+//   // res.send(`<h1>Hello room id ${req.params.roomId}</h1>`);
+//   res.send(req.params)
+//   console.log(req.params)
+// })
 
 io.on('connection', (socket) => { 
 	console.log("client connected", socket.id)
