@@ -50,7 +50,6 @@ whiteCards = cardJSON["whiteCards"]
 
 const io = require('socket.io')(server);
 
-
 io.on('connection', (socket) => { 
 	console.log("client connected", socket.id)
 	socket.on('test', test => {
