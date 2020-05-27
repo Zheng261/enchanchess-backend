@@ -1,11 +1,3 @@
-var express = require('express');
-var cors = require('cors')
-
-var app = express();
-app.use(cors());
-app.options('*', cors());
-const http = require('http');
-const server = http.createServer(app);
 
 // For reading JSON
 const fs = require('fs');
@@ -14,22 +6,14 @@ const uuidv4 = require('uuid/v4');
 
 const PORT = process.env.PORT || 8000	// server port
 
-// Holds rooms
-const roomIds = new Set()
-// Maps room IDs to players, room creators, start status, etc. 
-// Holds a dict for each room. Each dict contains "creators", "rooms","startStatus", etc..
-const roomIdData = {}
+var express = require('express');
+var cors = require('cors')
 
-// Shuffles Array
-function shuffle(array) {
-	array.sort(() => Math.random() - 0.5);
-}
+var app = express();
+// app.use(cors());
+// app.options('*', cors());
+const http = require('http');
 
-let rawCardData = fs.readFileSync('Cards/baseSet.json');
-let cardJSON = JSON.parse(rawCardData);
-
-blackCards = cardJSON["blackCards"]
-whiteCards = cardJSON["whiteCards"]
 
 // // these rest api req are what is causing the cors!!!!!!
 // app.get('/', cors(), (req, res) => {
@@ -48,9 +32,28 @@ whiteCards = cardJSON["whiteCards"]
 //   console.log(req.params)
 // })
 
+const server = http.createServer(app);
+
 var allowedOrigins = "http://localhost:3000:*, https://bestcah-web.herokuapp.com/:*, https://cahtime.com/:*";
 const io = require('socket.io')(server, {origins: allowedOrigins});
+//const io = require('socket.io')(server)
 
+// Holds rooms
+const roomIds = new Set()
+// Maps room IDs to players, room creators, start status, etc. 
+// Holds a dict for each room. Each dict contains "creators", "rooms","startStatus", etc..
+const roomIdData = {}
+
+// Shuffles Array
+function shuffle(array) {
+	array.sort(() => Math.random() - 0.5);
+}
+
+let rawCardData = fs.readFileSync('Cards/baseSet.json');
+let cardJSON = JSON.parse(rawCardData);
+
+blackCards = cardJSON["blackCards"]
+whiteCards = cardJSON["whiteCards"]
 
 io.on('connection', (socket) => { 
 	console.log("client connected", socket.id)
