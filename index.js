@@ -16,10 +16,10 @@ const http = require('http');
 
 
 // // these rest api req are what is causing the cors!!!!!!
-// app.get('/', cors(), (req, res) => {
-// //   res.send('<h1>Hello world</h1>');
-// 	res.sendFile(__dirname + '/chatbox_temp.html');	//temp for testing chat
-// });
+app.get('/', cors(), (req, res) => {
+   res.send('<h1>Hello world</h1>');
+   //res.sendFile(__dirname + '/chatbox_temp.html');	//temp for testing chat
+ });
 
 
 // // joining unique room url
@@ -33,8 +33,7 @@ const http = require('http');
 // })
 
 const server = http.createServer(app);
-
-var allowedOrigins = "http://localhost:3000:*, https://bestcah-web.herokuapp.com/:*, https://cahtime.com/:*";
+var allowedOrigins = "http://localhost:3000:*, https://bestcah-web.herokuapp.com/:*, https://cahtime.com/:*, http://localhost:8000:*";
 const io = require('socket.io')(server, {origins: allowedOrigins});
 //const io = require('socket.io')(server)
 
