@@ -51,7 +51,7 @@ app.get('/', cors(), (req, res) => {
 var allowedOrigins = "http://localhost:3000:*, https://bestcah-web.herokuapp.com/:*, https://cahtime.com/:*, http://localhost:8000:*";
 const io = require('socket.io')(server, {origins: allowedOrigins});
 
-const io = require('socket.io')(server);
+//const io = require('socket.io')(server);
 
 io.on('connection', (socket) => { 
 	console.log("client connected", socket.id)
