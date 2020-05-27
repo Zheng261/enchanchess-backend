@@ -34,7 +34,7 @@ whiteCards = cardJSON["whiteCards"]
 // // these rest api req are what is causing the cors!!!!!!
 app.get('/', cors(), (req, res) => {
    res.send('<h1>Hello world</h1>');
-   res.sendFile(__dirname + '/chatbox_temp.html');	//temp for testing chat
+   //res.sendFile(__dirname + '/chatbox_temp.html');	//temp for testing chat
  });
 
 
