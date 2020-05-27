@@ -48,7 +48,7 @@ whiteCards = cardJSON["whiteCards"]
 //   console.log(req.params)
 // })
 
-var allowedOrigins = "http://localhost:3000:*, https://bestcah-web.herokuapp.com/:*, https://cahtime.com/:*";
+var allowedOrigins = "http://localhost:3000:*, https://bestcah-web.herokuapp.com/:*, https://cahtime.com/:*, http://localhost:8000:";
 const io = require('socket.io')(server, {origins: allowedOrigins});
 
 
