@@ -4,7 +4,7 @@ var cors = require('cors')
 var app = express();
 app.use(cors());
 app.options('*', cors());
-const http = require('http');
+const http = require('https');
 const server = http.createServer(app);
 
 // For reading JSON
@@ -48,8 +48,7 @@ whiteCards = cardJSON["whiteCards"]
 //   console.log(req.params)
 // })
 
-var allowedOrigins = "http://localhost:3000:*, https://bestcah-web.herokuapp.com/:*, https://cahtime.com/:*";
-const io = require('socket.io')(server, {origins: allowedOrigins});
+const io = require('socket.io')(server);
 
 
 io.on('connection', (socket) => { 
