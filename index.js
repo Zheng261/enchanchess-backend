@@ -27,6 +27,7 @@ function shuffle(array) {
 
 let rawCardData = fs.readFileSync('Cards/baseSet.json');
 let cardJSON = JSON.parse(rawCardData);
+
 blackCards = cardJSON["blackCards"]
 whiteCards = cardJSON["whiteCards"]
 
@@ -116,6 +117,8 @@ io.on('connection', (socket) => {
 	})
 
 	// called when party leader wants to start game for everyone in the room
+	// NOTE: ONE ISSUE IS THAT A LOT OF THESE DON'T REACH OTHER PLAYERS
+	// BECAUSE THEIR COMPONENTS ARE NOT LOADED UNTIL AFTER THEY START THE GAME
 	socket.on('startGame', roomId =>{
 		// Adding condition in case two players try to start at the same time
 		console.log(roomIdData[roomId]["Started"])
@@ -142,7 +145,8 @@ io.on('connection', (socket) => {
 			}
 			// Tell everyone in our room there's a black card
 			io.to(roomId).emit('drawBlackCardReply', roomIdData[roomId]["CurrBlackCard"])
-			
+			handleBlackCardMaybePickMany(roomId, roomIdData[roomId]["CurrBlackCard"].pick)
+			io.to(roomId).emit('allowChooseCards', roomIdData[roomId]["CurrBlackCard"].pick)
 		}
 		io.to(roomId).emit('gameStarted', true)
 	})
@@ -166,7 +170,6 @@ io.on('connection', (socket) => {
 		// Replies with player's new hand 
 		io.to(roomId).emit(('drawCardReply').concat(user), roomIdData[roomId]["PlayersToHands"][user])
 	})
-
 
 	// Called when a user wants to draw a card
 	// (Not used right now)
@@ -201,17 +204,45 @@ io.on('connection', (socket) => {
 			roomIdData[roomId]["PlayersToHands"][user].filter(function(value, index, arr){ return value != card;})
 
 		// Array of cards players have played so far this round
+		// Currently do not distinguish which cards were played by which players before czar is picked
+		// even for pick-2's -- may need future fix for this!
 		cardsSoFar = Object.keys(roomIdData[roomId]["CardsInCenterToPlayers"])
 
+		// Make it not predictable which cards are whose
+		shuffle(cardsSoFar)
+
+		// If we've hit the number of cards picked * number of cards allowed to pick, let czar pick cards
 		if (cardsSoFar.length >= 
-			roomIdData[roomId]["Players"].length-1)	{
-			// Make it not predictable which cards are whose
-			shuffle(cardsSoFar)
-			// If we have enough cards in the center, automatically trigger card picking phase
+			((roomIdData[roomId]["Players"]).length-1)*roomIdData[roomId]["CurrBlackCard"].pick)	{
+
+			// Returns array of cards instead so peoples' cards are paired. Our goal is just to put
+			// players cards next to each other. The front-end will assume every n conseq. cards
+			// are mapped to the same player, where n is the # of cards to pick.
+			let cardsSoFarPlayerGrouped = [];
+			
+			// O(n^2 because 10^2 is only 100 and who plays CAH with more than 10 people)
+			// Keeps track of which players we've seen so far for pairing
+			let playersSeenSoFar = [];
+			// Cards so far just got shuffled, so user order is random
+			for(card of cardsSoFar) {
+				player =  roomIdData[roomId]["CardsInCenterToPlayers"][card]
+				// If we've seen this player already, ignores the card
+				if (!playersSeenSoFar.includes(player)) {
+					for(card of cardsSoFar) {
+						if (roomIdData[roomId]["CardsInCenterToPlayers"][card] == player) {
+							cardsSoFarPlayerGrouped.push(card);
+						}
+					}
+				    playersSeenSoFar.push(player);
+				}
+			}
+			// If we have enough cards in the center, automatically trigger card picking phase.
 			// Allows players to see all cards in center 
-			io.to(roomId).emit('allowPickCards', cardsSoFar)
+			io.to(roomId).emit('allowPickCards', {cards : cardsSoFarPlayerGrouped, pick : roomIdData[roomId]["CurrBlackCard"].pick});
 		} else {
-			io.to(roomId).emit('playCardReply', cardsSoFar)
+			io.to(roomId).emit('playCardReply', cardsSoFar);
+			// Redundantly reminds people the # cards they can choose. Useful for people who are late to join
+			io.to(roomId).emit('allowChooseCards', roomIdData[roomId]["CurrBlackCard"].pick)
 		}
 	})
 
@@ -224,7 +255,7 @@ io.on('connection', (socket) => {
 		// Gets white cards too while we're at it, why not
 		for (const player of roomIdData[roomId]["Players"]) {
 			io.to(roomId).emit(('drawCardReply').concat(player), roomIdData[roomId]["PlayersToHands"][player])
-		}
+		}	
 	});
 
 	// Called when the czar picks a card, also contains logic for ending a round
@@ -293,11 +324,15 @@ io.on('connection', (socket) => {
 
 				// Pushes current black card to end of deck
 				roomIdData[roomId]["BlackCardDeck"].push(roomIdData[roomId]["CurrBlackCard"])
+
 				// Draw next black card
 				roomIdData[roomId]["CurrBlackCard"] = roomIdData[roomId]["BlackCardDeck"].shift()
 
-				// Tell everyone in our room there's a black card (also done in czar lol)
+				// Tell everyone in our room there's a black card (also done in czar for redundancy lol)
 				io.to(roomId).emit('drawBlackCardReply', roomIdData[roomId]["CurrBlackCard"])
+
+				// If we need players to pick a lot of cards, send message about it, make them draw more 
+				handleBlackCardMaybePickMany(roomId, roomIdData[roomId]["CurrBlackCard"].pick)
 
 				// Advance who is the Czar
 				czarIndex += 1
@@ -317,6 +352,8 @@ io.on('connection', (socket) => {
 					isUserUpdate : false  
 				};  
 				io.emit(('RECEIVE_MESSAGE').concat(roomId), data);
+				
+				io.to(roomId).emit('allowChooseCards', roomIdData[roomId]["CurrBlackCard"].pick)
 			}
 		}
 		
@@ -401,6 +438,23 @@ const drawCard = (roomId, user) => {
 	roomIdData[roomId]["CardsInHandOrPlay"].add(randomCard)
 }
 
+// Draws people cards if black card says pick 2 or more
+const handleBlackCardMaybePickMany = (roomId, pick) => {
+	if (pick < 2) {
+		return
+	}
+	// Draw (pick - 1) cards before the round starts
+	for (const player of roomIdData[roomId]["Players"]) {
+		// Obviously besides the czar
+		if (player != roomIdData[roomId]["Players"][czarIndex]) {
+			for (cardDrawNum = 0; cardDrawNum < pick-1; cardDrawNum++) {
+				drawCard(roomId, user)
+			}
+		}
+		io.to(roomId).emit(('drawCardReply').concat(player), roomIdData[roomId]["PlayersToHands"][player])
+	}
+}
+
 /**
  * connects a socket to a specified room
  * @param {object} [socket] [a connected socket]
@@ -424,7 +478,6 @@ const joinRoom = (socket, roomId, user) => {
 			if (!storedPlayers.includes(user)) {
 				roomIdData[roomId]["PlayersToPoints"][user] = 0
 			}
-
 			// If game started, we gotta draw this friend some cards!
 			if (roomIdData[roomId]["Started"]) {
 				roomIdData[roomId]["PlayersToHands"][user] = []
