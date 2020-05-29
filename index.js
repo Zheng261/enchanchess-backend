@@ -25,7 +25,7 @@ function shuffle(array) {
 	array.sort(() => Math.random() - 0.5);
 }
 
-let rawCardData = fs.readFileSync('Cards/baseSet.json');
+let rawCardData = fs.readFileSync('Cards/baseSetPlusExpansions.json');
 let cardJSON = JSON.parse(rawCardData);
 
 blackCards = cardJSON["blackCards"]
@@ -76,6 +76,8 @@ io.on('connection', (socket) => {
 		// All cards in center of board right now (player to card dict)
 		roomIdData[roomId]["CardsInCenterToPlayers"] = {}
 
+		// Packs (can be configured later)
+		roomIdData[roomId]["Packs"] = ["Base","CAHe1","CAHe2","CAHe3","CAHe4","CAHe5","CAHe6"]
 		// Keep track of who is czar
 		roomIdData[roomId]["CzarIndex"] = 0
 
