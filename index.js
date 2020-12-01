@@ -139,8 +139,11 @@ io.on('connection', (socket) => {
 
 	// return a list of players connected to the room
 	socket.on('getPlayersInRoom', roomId => {
-		const players = roomIdData[roomId]["Players"]
-		io.to(roomId).emit('dispatchPlayers', players)
+		if(roomId in roomIdData) {
+			const players = roomIdData[roomId]["Players"]
+			io.to(roomId).emit('dispatchPlayers', players)
+			console.log(players);
+		}
 	}) 
 
 	// testing disconnection (specifically for chatbox)
